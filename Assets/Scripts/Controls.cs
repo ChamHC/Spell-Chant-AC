@@ -1,11 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Networking;
 
-public class Controls : MonoBehaviour
+public class Controls : NetworkBehaviour
 {
     [Header("Variables")]
     [SerializeField, ReadOnly] private Rigidbody rb;
@@ -24,7 +26,6 @@ public class Controls : MonoBehaviour
     private Vector2 lookInputVector;
 
     [Header("Movement Parameters")]
-    [SerializeField, ReadOnly] private float currentSpeed;
     [SerializeField] private float speed = 4f;
     [SerializeField] private float maxForce = 1f;
     private Vector2 moveInputVector;
@@ -33,7 +34,7 @@ public class Controls : MonoBehaviour
     [Header("Jump Parameters")]
     [SerializeField] private float jumpForce = 5f;
 
-    private void Awake()
+    private void Start()
     {
         rb = GetComponent<Rigidbody>();
         state = GetComponent<State>();
@@ -42,17 +43,25 @@ public class Controls : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (!IsOwner)
+            return;
+
         MoveHandler();
     }
 
     private void LateUpdate()
     {
+        if (!IsOwner)
+            return;
+
         LookHandler();
     }
 
     #region Look
     public void Look(InputAction.CallbackContext context)
     {
+        if (!IsOwner)
+            return;
         lookInputVector = context.ReadValue<Vector2>();
     }
     private void LookHandler()
@@ -62,19 +71,23 @@ public class Controls : MonoBehaviour
         lookRotation = Mathf.Clamp(lookRotation, lowerLookBoundary, upperLookBoundary);
         camHolder.transform.eulerAngles = new Vector3(lookRotation, camHolder.transform.eulerAngles.y, camHolder.transform.eulerAngles.z);
     }
+    public override void OnNetworkSpawn()
+    {
+        camHolder.SetActive(IsOwner);
+        base.OnNetworkSpawn();
+    }
     #endregion
 
     #region Move
     public void Movement(InputAction.CallbackContext context)
     {
-        if (!enableMovement)
+        if (!enableMovement || !IsOwner)
             return;
 
         moveInputVector = context.ReadValue<Vector2>();
     }
     private void MoveHandler()
     {
-        currentSpeed = Mathf.Sqrt(Mathf.Pow(rb.velocity.x, 2) + Mathf.Pow(rb.velocity.y, 2));
         if (!state.isGrounded)
             return;
 
@@ -92,6 +105,9 @@ public class Controls : MonoBehaviour
     #region Jump
     public void Jump(InputAction.CallbackContext context)
     {
+        if (!IsOwner)
+            return;
+
         if (enableJump && context.performed && state.isGrounded)
         {
             Debug.Log("Jump: " + context.phase);

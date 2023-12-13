@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using Unity.Netcode;
 using UnityEngine;
 
 public enum PlayerState
@@ -8,7 +10,7 @@ public enum PlayerState
     Walking,
     Jumping
 }
-public class State : MonoBehaviour
+public class State : NetworkBehaviour
 {
     [Header("Components")]
     [SerializeField] private CapsuleCollider leftFootCollider;
@@ -24,6 +26,9 @@ public class State : MonoBehaviour
 
     void Update()
     {
+        if (!IsOwner)
+            return;
+
         isGrounded = CheckGrounded();
     }
 
